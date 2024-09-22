@@ -39,7 +39,7 @@ async def check_github_issues(self: celery.Task):
             else:
                 last_checked = last_checked.astimezone(timezone.utc)
 
-            issues = github_client.get_issues(owner, name)
+            issues = github_client.get_issues(owner, name, True)
             
             updated_issues = []
             for issue in issues:

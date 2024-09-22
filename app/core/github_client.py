@@ -13,15 +13,18 @@ class GitHubClient:
         response.raise_for_status()
         return response.json()
 
-    def get_issues(self, owner: str, repo: str):
+    def get_issues(self, owner: str, repo: str, istask = False):
         url = f"{self.base_url}/repos/{owner}/{repo}/issues"
         params = {"state": "all"} 
         issues = []
         while url:
             response = self.session.get(url, params=params, headers=self.headers)
             response.raise_for_status()
-            issues.extend([{"number": i["number"], "title": i["title"]} for i in response.json()])
-            
+            if istask:
+                issues.extend(response.json())
+            else:
+                issues.extend([{"number": i["number"], "title": i["title"]} for i in response.json()])
+
             if "next" in response.links:
                 url = response.links["next"]["url"]
                 params = None 

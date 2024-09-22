@@ -1,3 +1,4 @@
+
 import celery, os, sys
 from celery import Celery
 from app.core.github_client import GitHubClient
@@ -70,9 +71,13 @@ def say_hello(who: str = "Test"):
     print(f"Hello {who}")
 
 
+schedule_sec = 45
+
+if os.getenv('ENV', 'development') == 'production': schedule_sec = 9999
+
 celery_app.conf.beat_schedule = {
     'check-github-issues-every-hour': {
         'task': 'worker.tasks.check_github_issues',
-        'schedule': 30.0, # per hour
+        'schedule': schedule_sec
     },
 }

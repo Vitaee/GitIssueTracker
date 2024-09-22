@@ -1,0 +1,52 @@
+version: '3'
+
+services:
+  web:
+    build: .
+    ports:
+      - "8002:8002"
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env.prod
+    environment:
+      - ENV=production
+    volumes:
+      - ./:/app
+    networks:
+      - app-network
+
+
+  db:
+    image: postgres:13
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env.prod
+    ports:
+      - "5437:5437"
+    environment:
+      - ENV=production
+    networks:
+      - app-network
+
+  redis:
+    image: redis:alpine
+    command: >
+      sh -c 'redis-server --appendonly yes'
+    ports:
+      - "6381:6379"
+    environment:
+      - ENV=production
+    networks:
+      - app-network
+
+
+networks:
+  app-network:
+    driver: bridge
+
+
+volumes:
+  postgres_data:

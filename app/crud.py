@@ -39,8 +39,8 @@ def delete_repo(db: Session, repo_id: int):
         db.commit()
     return db_repo
 
-def get_user_repos(db: Session, user: models.User):
-    return db.query(models.Repo).filter(models.Repo.users.contains(user)).all()
+def get_user_repos(db: Session, user: models.User, limit: int = 10, offset: int = 0):
+    return db.query(models.Repo).filter(models.Repo.users.contains(user)).limit(limit).offset(offset).all()
 
 def update_last_checked_repo(db: Session, repo_id: int, last_checked: datetime):
     repo = db.query(models.Repo).filter(models.Repo.id == repo_id).update({"last_checked": last_checked})

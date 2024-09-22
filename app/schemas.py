@@ -13,7 +13,6 @@ class UserRead(UserBase):
     id: int
     repos: List['Repo'] = []
 
-    # Updated to use ConfigDict
     model_config = ConfigDict(from_attributes=True)
 
 class Token(BaseModel):
@@ -23,7 +22,6 @@ class Token(BaseModel):
 class User(UserBase):
     id: int
 
-    # Updated to use ConfigDict
     model_config = ConfigDict(from_attributes=True)
 
 class RepoBase(BaseModel):
@@ -37,8 +35,14 @@ class Repo(RepoBase):
     id: int
     users: List[User] = []
 
-    # Updated to use ConfigDict
     model_config = ConfigDict(from_attributes=True)
+
+class PaginatedRepoResponse(BaseModel):
+    total_count: int
+    limit: int
+    offset: int
+    data: List[Repo]
+
 
 class TokenData(BaseModel):
     email: Optional[str] = None
@@ -62,10 +66,14 @@ class IssueBase(BaseModel):
 class IssueCreate(IssueBase):
     github_issue_id: int
 
-class Issue(IssueBase):
-    id: int
-    github_issue_id: int
-    repo_id: int
+class Issue(BaseModel):
+    number: int 
+    title: str
 
-    # Updated to use ConfigDict
+class PaginatedIssueResponse(BaseModel):
+    total_count: int
+    limit: int
+    offset: int
+    data: List[Issue]
+
     model_config = ConfigDict(from_attributes=True)

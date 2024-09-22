@@ -19,3 +19,6 @@ gevent
 PyJWT
 pydantic-settings
 pytest-asyncio
+fastapi-cache2
+slowapi
+secure

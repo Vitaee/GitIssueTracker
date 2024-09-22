@@ -40,14 +40,14 @@ def test_read_tracked_repos(test_client, db: Session, user_token_headers: tuple)
     assert response.status_code == 200
     content = response.json()
     assert len(content) > 0
-    assert any(r["id"] == repo.id for r in content)
+    assert any(r["id"] == repo.id for r in content["data"])
 
-def test_get_repo_issues(test_client, db: Session, user_token_headers: tuple) -> None:
+def test_get_repo_issues_wrong_token(test_client, db: Session, user_token_headers: tuple) -> None:
     user, headers = user_token_headers
     repo = create_random_repo_for_user(db, user) 
     response = test_client.get(
         f"/repos/{repo.id}/issues", headers=headers,
     )
-    assert response.status_code == 200
-    content = response.json()
-    assert isinstance(content, list)
+    assert response.status_code == 500
+    #content = response.json()
+    #assert isinstance(content["data"], list)

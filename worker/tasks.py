@@ -71,9 +71,9 @@ def say_hello(who: str = "Test"):
     print(f"Hello {who}")
 
 
-schedule_sec = 45
+schedule_sec = 45 # per 45 seconds
 
-if os.getenv('ENV', 'development') == 'production': schedule_sec = 9999
+if os.getenv('ENV', 'development') == 'production': schedule_sec = 9999 # or 3600 for per hour
 
 celery_app.conf.beat_schedule = {
     'check-github-issues-every-hour': {

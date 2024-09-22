@@ -44,6 +44,12 @@ Finally, simply start the app:
 - `uvicorn app.main:app --reload`
 
 
+### How To
+- First, register with an test or real email and use `/token/` endpoint and login with your credentials to get token which will need for other endpoints.
+- Secondly, track some real repository that exists on github. You wiil need to provide a github user name and repo name.
+- Finally check `https://canilgu.dev/mailhog` to see if you got an email from us for issue changes.
+- Furthermore, you can play with our api using `https://canilgu.dev/issue-tracker/docs`.
+
 
 ### Docker for production
 
@@ -82,3 +88,8 @@ Autogenerate Migrations: To autogenerate migrations based on your models, you sh
 ### Tests
 
 - `pytest -s tests/`
+
+or trigger single test file:
+
+- `pytest -s tests/test_repos.py`
+

@@ -35,9 +35,9 @@ from app.api.endpoints import users, repos, auth
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://canilgu.dev"],
+    allow_origins=["https://canilgu.dev", "https://canilgu.dev/issue-tracker", "http://localhost"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 

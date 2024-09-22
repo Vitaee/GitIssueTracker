@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-import jwt
+import jwt, os
 from jwt.exceptions import PyJWTError
 
 from app import crud, models, schemas
@@ -12,7 +12,11 @@ from app.config import settings
 from app.db.session import SessionLocal
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
+tokenUrl = "/token"
+env = os.getenv('ENV', 'development')
+if env == "production": tokenUrl = "/issue-tracker/token/"
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=tokenUrl)
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"

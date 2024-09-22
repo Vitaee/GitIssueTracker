@@ -5,8 +5,6 @@ class GitHubClient:
     def __init__(self):
         self.base_url = "https://api.github.com"
         self.session = requests.Session()
-        print(settings.GITHUB_TOKEN)
-        print(f"Bearer {settings.GITHUB_TOKEN}")
         self.headers = {"Authorization" : f"Bearer {settings.GITHUB_TOKEN}"}
 
     def get_repo(self, owner: str, repo: str):

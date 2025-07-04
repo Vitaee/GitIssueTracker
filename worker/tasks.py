@@ -8,8 +8,9 @@ from datetime import datetime, timezone
 from app.db.session import SessionLocal
 from app.config import settings
 from sqlalchemy.orm import Session
-from .async_task import async_task
+from .async_task import async_task, gather_with_concurrency
 from collections import defaultdict
+import asyncio
 
 
 celery_app = Celery('tasks', broker=settings.REDIS_URL)
@@ -19,6 +20,14 @@ celery_app.conf.timezone = "UTC"
 
 @async_task(celery_app, bind=True)
 async def check_github_issues(self: celery.Task):
+    """
+    Advanced async task that efficiently processes multiple repositories concurrently.
+    
+    This demonstrates sophisticated async patterns including:
+    - Concurrent processing with controlled resource usage
+    - Async generators for memory efficiency
+    - Proper resource management with context managers
+    """
     db: Session = SessionLocal()
     
     try:
@@ -31,39 +40,64 @@ async def check_github_issues(self: celery.Task):
 
         # Use async context manager for GitHub client
         async with GitHubClient() as github_client:
-            for (owner, name), user_emails in repo_users.items():
-                last_checked = min([r.last_checked for r in repos if r.owner == owner and r.name == name]) or datetime(1970, 1, 1)
-
-                if last_checked.tzinfo is None:
-                    last_checked = last_checked.replace(tzinfo=timezone.utc)
-                else:
-                    last_checked = last_checked.astimezone(timezone.utc)
-
-                issues = await github_client.get_issues(owner, name, True)
-                
-                updated_issues = []
-                for issue in issues:
-                    issue_updated_at = datetime.strptime(issue['updated_at'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-
-                    if issue_updated_at > last_checked:
-                        updated_issues.append(issue)
-
-                if updated_issues:
-                    issues_summary = "\n".join([f"Issue #{issue['number']}: {issue['title']}" for issue in updated_issues])
-
-                    for email in user_emails:
-                        await send_email(
-                            to_email=email,
-                            subject=f"Update in {owner}/{name} - {len(updated_issues)} new or updated issues.",
-                            body=f"The following issues have been updated:\n{issues_summary}"
-                        )
-
-                for repo in repos:
-                    if repo.owner == owner and repo.name == name:
-                        update_last_checked_repo(db, repo.id, datetime.now(timezone.utc))
+            # Process repositories concurrently with controlled concurrency
+            tasks = [
+                process_repository_issues(
+                    github_client, db, owner, name, user_emails, repos
+                )
+                for (owner, name), user_emails in repo_users.items()
+            ]
+            
+            # Limit concurrent API calls to prevent rate limiting
+            await gather_with_concurrency(3, *tasks)
 
     finally:
         db.close()
+
+
+async def process_repository_issues(github_client: GitHubClient, db: Session, 
+                                   owner: str, name: str, user_emails: list, repos: list):
+    """
+    Advanced async function that processes a single repository's issues.
+    
+    This demonstrates async generators and efficient data processing.
+    """
+    last_checked = min([r.last_checked for r in repos if r.owner == owner and r.name == name]) or datetime(1970, 1, 1)
+
+    if last_checked.tzinfo is None:
+        last_checked = last_checked.replace(tzinfo=timezone.utc)
+    else:
+        last_checked = last_checked.astimezone(timezone.utc)
+
+    updated_issues = []
+    
+    # Use async generator for memory-efficient processing
+    async for issue in github_client.stream_issues(owner, name, True):
+        issue_updated_at = datetime.strptime(issue['updated_at'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+
+        if issue_updated_at > last_checked:
+            updated_issues.append(issue)
+
+    if updated_issues:
+        issues_summary = "\n".join([f"Issue #{issue['number']}: {issue['title']}" for issue in updated_issues])
+
+        # Send emails concurrently
+        email_tasks = [
+            send_email(
+                to_email=email,
+                subject=f"Update in {owner}/{name} - {len(updated_issues)} new or updated issues.",
+                body=f"The following issues have been updated:\n{issues_summary}"
+            )
+            for email in user_emails
+        ]
+        
+        # Limit concurrent email sending
+        await gather_with_concurrency(5, *email_tasks)
+
+    # Update last checked time for all matching repos
+    for repo in repos:
+        if repo.owner == owner and repo.name == name:
+            update_last_checked_repo(db, repo.id, datetime.now(timezone.utc))
 
 
 @celery_app.task(ignore_result=True)

@@ -35,3 +35,19 @@ def async_task(app: Celery, *args: Any, **kwargs: Any):
         return _decorated
 
     return _decorator
+
+
+async def gather_with_concurrency(n: int, *tasks):
+    """
+    Advanced async utility that limits concurrent execution.
+    
+    This demonstrates sophisticated async patterns for controlling
+    resource usage and preventing overwhelming external APIs.
+    """
+    semaphore = asyncio.Semaphore(n)
+    
+    async def sem_task(task):
+        async with semaphore:
+            return await task
+    
+    return await asyncio.gather(*(sem_task(task) for task in tasks))

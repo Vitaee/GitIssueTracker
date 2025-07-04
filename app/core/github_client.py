@@ -1,5 +1,5 @@
 import httpx
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Dict, Any, List
 from contextlib import asynccontextmanager
 from app.config import settings
 
@@ -45,38 +45,73 @@ class GitHubClient:
         async with self.get_client() as client:
             response = await client.get(url)
             response.raise_for_status()
-            return response.json()
+            return await response.json()
 
     async def get_issues(self, owner: str, repo: str, istask=False):
-        url = f"{self.base_url}/repos/{owner}/{repo}/issues"
-        params = {"state": "all"}
+        """
+        Get issues using traditional approach for backward compatibility.
+        """
         issues = []
+        async for issue in self.stream_issues(owner, repo, istask):
+            issues.append(issue)
+        return issues
+
+    async def stream_issues(self, owner: str, repo: str, istask=False) -> AsyncGenerator[Dict[Any, Any], None]:
+        """
+        Advanced async generator for streaming GitHub issues.
+        
+        This provides memory-efficient iteration over large datasets
+        and demonstrates advanced async patterns with generators.
+        """
+        url = f"{self.base_url}/repos/{owner}/{repo}/issues"
+        params = {"state": "all", "per_page": 100}  # Optimize pagination
         
         async with self.get_client() as client:
             while url:
                 response = await client.get(url, params=params)
                 response.raise_for_status()
                 
-                if istask:
-                    issues.extend(response.json())
-                else:
-                    issues.extend([{"number": i["number"], "title": i["title"]} for i in response.json()])
+                issues_batch = await response.json()
+                
+                for issue in issues_batch:
+                    if istask:
+                        yield issue
+                    else:
+                        yield {"number": issue["number"], "title": issue["title"]}
 
                 # Handle pagination
                 if "next" in response.links:
                     url = response.links["next"]["url"]
-                    params = None
+                    params = None  # URL already contains params
                 else:
                     url = None
-                    
-        return issues
+
+    async def get_issues_batch(self, owner: str, repo: str, batch_size: int = 50, istask=False) -> AsyncGenerator[List[Dict[Any, Any]], None]:
+        """
+        Advanced async generator that yields batches of issues.
+        
+        This demonstrates sophisticated async patterns for processing
+        large datasets in configurable chunks.
+        """
+        batch = []
+        
+        async for issue in self.stream_issues(owner, repo, istask):
+            batch.append(issue)
+            
+            if len(batch) >= batch_size:
+                yield batch
+                batch = []
+        
+        # Yield remaining items if any
+        if batch:
+            yield batch
 
     async def get_issue(self, owner: str, repo: str, issue_number: int):
         url = f"{self.base_url}/repos/{owner}/{repo}/issues/{issue_number}"
         async with self.get_client() as client:
             response = await client.get(url)
             response.raise_for_status()
-            return response.json()
+            return await response.json()
     
     async def __aenter__(self):
         """Support async context manager protocol."""

@@ -10,18 +10,18 @@ from app.core.limiter import limiter
 
 
 router = APIRouter()
-github_client = GitHubClient()
 
 
 @router.post("/track", response_model=schemas.Repo)
-def track_repo(
+async def track_repo(
     repo: schemas.RepoCreate,
     db: Session = Depends(deps.get_db),
     current_user: schemas.User = Depends(deps.get_current_user)
 ):
     try:
-        github_repo = github_client.get_repo(repo.owner, repo.name)
-    except:
+        async with GitHubClient() as github_client:
+            github_repo = await github_client.get_repo(repo.owner, repo.name)
+    except Exception as e:
         raise HTTPException(status_code=404, detail="Repository not found on GitHub")
 
     db_repo = crud.get_repo_by_owner_and_name(db, owner=repo.owner, name=repo.name)
@@ -54,7 +54,6 @@ def untrack_repo(
 
 
 @router.get("/tracked", response_model=schemas.PaginatedRepoResponse)
-@cache(expire=60)  #  60 seconds
 @limiter.limit("15/minute") # 15 req per minute per ip
 def read_tracked_repos(
     request: Request,
@@ -74,8 +73,7 @@ def read_tracked_repos(
 
 
 @router.get("/{repo_id}/issues", response_model=schemas.PaginatedIssueResponse)
-@cache(expire=60)  #  60 seconds
-def get_repo_issues(
+async def get_repo_issues(
     repo_id: int,
     db: Session = Depends(deps.get_db),
     limit: int = Query(10, description="Limit the number of results"),
@@ -87,9 +85,10 @@ def get_repo_issues(
         raise HTTPException(status_code=404, detail="Repo not found or not authorized")
     
     try:
-        github_issues = github_client.get_issues(owner=db_repo.owner, repo=db_repo.name)
+        async with GitHubClient() as github_client:
+            github_issues = await github_client.get_issues(owner=db_repo.owner, repo=db_repo.name)
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Error fetching issues from GitHub")
+        raise HTTPException(status_code=500, detail=f"Error fetching issues from GitHub: {str(e)}")
     
     return {
         "total_count": len(github_issues),
